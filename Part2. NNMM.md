@@ -1,6 +1,6 @@
- # Mixed effect neural network: Genotype -> Unobserved intemediate traits -> Phenotye
+ # Mixed effect neural network: Genotypes -> Unobserved intemediate traits -> Phenotyes
  
- Tips: please center the phenotype to have zero mean.
+ Tips: please center the phenotypes to have zero mean.
  
  ## Example(a): fully-connected neural networks, all intemediate traits are unobserved
 - nonlinear function (to define relationship between middle layer and phenotye): tanh (other supported activation functions: "sigmoid", "relu", "leakyrelu", "linear")
