@@ -13,7 +13,7 @@ Tips:
 * Bayesian model: multiple independent single-trait BayesC (to sample marker effects on intemediate omics)
 * sample the missing omics in the middle layer: Hamiltonian Monte Carlo
 
-![](https://github.com/zhaotianjing/figures/blob/main/part3_example.png)
+![](https://github.com/zhaotianjing/figures/blob/main/part3_example.png?raw=true)
 
 ```julia
 # Step 1: Load packages
@@ -56,8 +56,7 @@ accuruacy  = cor(results[!,:EBV],results[!,:bv])
 ## Includes a residual that is not mediated by other omics features
 To include residuals polygenic component (i.e. directly from genotypes to phenotypes, not mediated by omics features), you can additional hidden nodes in the middle layer (see example (o2)). This can also be achieved in a partial-connected neural network in a same manner.
 
-![](https://github.com/zhaotianjing/figures/blob/main/wiki_omics_residual.png)
-
+![](https://github.com/zhaotianjing/figures/blob/main/wiki_omics_residual.png?raw=true)
 
 ### example(o2): fully-connected neural network with residuals
 
