@@ -41,7 +41,7 @@ accuruacy  = cor(results[!,:EBV],results[!,:bv1])
 ```
 
 
-## Example output files:
+## Example output files
 
 The i-th middle nodes will be named as "trait name"+"i". In our example, the observed trait is named "y1", and there are 3 middle nodes, so the middle nodes are named as "y11", "y12", and "y13", respectively.
 
