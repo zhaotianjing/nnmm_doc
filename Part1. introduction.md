@@ -21,3 +21,16 @@ Details can be found in our publications:
 NN-MM can fit fully-connected neural networks ((a),(b)), or partial-connected neural networks ((c),(d)). Also, the relationship between middle layer (intermediate traits) and output layer (phenotypes) can be based on activation functions ((a),(c)), or pre-defined by a user-defined function ((b),(d)).
 
 ![](https://github.com/zhaotianjing/figures/blob/main/wiki_full_vs_partial.png)
+
+## 4. Multi-threaded parallelism
+
+By default, multiple single-trait models will be used to model the relationships between input layer (genotypes) and middle layer (intermediate traits). Multi-threaded parallelism will be used for parallel computing. The number of threads can be checked by running `Threads.nthreads()` in Julia. Usually, the speed will be about 3 times faster than the single thread.
+
+The number of execution threads is controlled by using the -t/--threads command-line argument (requires at least Julia 1.5). 
+
+For example, to start Julia with 4 threads:
+```
+julia --threads 4
+```
+
+If you're using Juno via IDE like Atom, all threads will be loaded automatically. 
