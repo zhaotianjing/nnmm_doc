@@ -44,46 +44,54 @@ accuruacy  = cor(results[!,:EBV],results[!,:bv1])
 ```
 
 
-## example(o3): partial-connected neural networks with omics data
+## example(o3): partial-connected neural networks with intermediate omics data
 
 
-* Same as for fully-connected neural network, the names of omics features should be put in the `build_model()` function through the `latent_traits` argument. The order of omics and the order of genotype groups in the model equation should be consistant.
+* Same as for fully-connected neural network with intermediate omics data, the names of omics features should be put in the `build_model()` function through the `latent_traits` argument. The order of omics and the order of genotype groups in the model equation should be consistant.
 
-In below example, we assume genotype group 1 only affect omics 1, and genotype group 2 only affect omics 2.
+In below example, we assume genotype group i only affect omics i (here i =1,...,5).
 
 ![](https://github.com/zhaotianjing/figures/blob/main/part4_partial_omics.png)
 
 ```julia
 # Step 1: Load packages
-using JWAS,DataFrames,CSV,Statistics,JWAS.Datasets,Random
+using JWAS,DataFrames,CSV,Statistics,JWAS.Datasets,Random,HTTP 
 Random.seed!(1)
 
 # Step 2: Read data
-phenofile   = "/Users/tianjing/nnmm_doc/data_simulation/y.csv"
-omicsfile   = "/Users/tianjing/nnmm_doc/data_simulation/omics.csv"
-genofile1   = "/Users/tianjing/nnmm_doc/data_simulation/geno_group1.csv"
-genofile2   = "/Users/tianjing/nnmm_doc/data_simulation/geno_group2.csv"
-genofile3   = "/Users/tianjing/nnmm_doc/data_simulation/geno_group3.csv"
-genofile4   = "/Users/tianjing/nnmm_doc/data_simulation/geno_group4.csv"
-genofile5   = "/Users/tianjing/nnmm_doc/data_simulation/geno_group5.csv"
+phenofile  = HTTP.get("https://raw.githubusercontent.com/zhaotianjing/nnmm_doc/main/data_simulation/y.csv").body
+omicsfile  = HTTP.get("https://raw.githubusercontent.com/zhaotianjing/nnmm_doc/main/data_simulation/omics.csv").body
+
+genofile1   = HTTP.get("https://raw.githubusercontent.com/zhaotianjing/nnmm_doc/main/data_simulation/geno_group1.csv").body
+genofile2   = HTTP.get("https://raw.githubusercontent.com/zhaotianjing/nnmm_doc/main/data_simulation/geno_group2.csv").body
+genofile3   = HTTP.get("https://raw.githubusercontent.com/zhaotianjing/nnmm_doc/main/data_simulation/geno_group3.csv").body
+genofile4   = HTTP.get("https://raw.githubusercontent.com/zhaotianjing/nnmm_doc/main/data_simulation/geno_group4.csv").body
+genofile5   = HTTP.get("https://raw.githubusercontent.com/zhaotianjing/nnmm_doc/main/data_simulation/geno_group5.csv").body
 
 phenotypes  = CSV.read(phenofile,DataFrame)
 omics       = CSV.read(omicsfile,DataFrame)[:,1:6] #only use first 5 omics for demonstration
 omics_names = names(omics)[2:end] #get names of omics
 insertcols!(omics,2,:y => phenotypes[:,:y], :bv => phenotypes[:,:bv]) #phenotype and omics should be in the same dataframe
 
-geno1  = get_genotypes(genofile1,separator=',',method="BayesA");
-geno2  = get_genotypes(genofile2,separator=',',method="BayesB");
-geno3  = get_genotypes(genofile3,separator=',',method="BayesC");
-geno4  = get_genotypes(genofile4,separator=',',method="RR-BLUP");
-geno5  = get_genotypes(genofile5,separator=',',method="BayesL");
+geno1_df    = CSV.read(genofile1,DataFrame)
+geno2_df    = CSV.read(genofile2,DataFrame)
+geno3_df    = CSV.read(genofile3,DataFrame)
+geno4_df    = CSV.read(genofile4,DataFrame)
+geno5_df    = CSV.read(genofile5,DataFrame)
+
+geno1  = get_genotypes(geno1_df,separator=',',method="BayesA");
+geno2  = get_genotypes(geno2_df,separator=',',method="BayesB");
+geno3  = get_genotypes(geno3_df,separator=',',method="BayesC");
+geno4  = get_genotypes(geno4_df,separator=',',method="RR-BLUP");
+geno5  = get_genotypes(geno5_df,separator=',',method="BayesL");
+
 
 # Step 3: Build Model Equations
-model_equation = "y = intercept + geno1 + geno2 + geno3 + geno4 + geno5"; #omics1=intercept + geno1; omics2=intercept + geno2; ...
+model_equation = "y = intercept + geno1 + geno2 + geno3 + geno4 + geno5"; #omics1=intercept+geno1; omics2=intercept+geno2; ...
 model = build_model(model_equation,
-		            num_hidden_nodes=5,
-		            nonlinear_function="sigmoid",
-	                latent_traits=omics_names)
+		    num_hidden_nodes=5,
+		    nonlinear_function="sigmoid",
+	            latent_traits=omics_names)
 
 # Step 4: Run Analysis
 out = runMCMC(model, omics, chain_length=5000, printout_model_info=false);
