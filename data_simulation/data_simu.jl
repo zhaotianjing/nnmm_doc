@@ -111,3 +111,31 @@ var(y_nonlinear)
 y_df=DataFrame(ID=1:100,y=y_nonlinear,bv=tbv)
 CSV.write("y.csv",y_df)
 
+
+
+#######split genotypes into 5 groups
+geno=CSV.read("geno_n100_p200.csv",DataFrame)
+geno_matrix=Matrix(geno[:,2:end])
+geno_group1=geno_matrix[:,1:20]
+geno_group2=geno_matrix[:,21:40]
+geno_group3=geno_matrix[:,41:60]
+geno_group4=geno_matrix[:,61:80]
+geno_group5=geno_matrix[:,81:100]
+
+geno_group1_df=DataFrame(geno_group1,["m$i" for i in 1:20])
+geno_group2_df=DataFrame(geno_group2,["m$i" for i in 21:40])
+geno_group3_df=DataFrame(geno_group3,["m$i" for i in 41:60])
+geno_group4_df=DataFrame(geno_group4,["m$i" for i in 61:80])
+geno_group5_df=DataFrame(geno_group5,["m$i" for i in 81:100])
+
+insertcols!(geno_group1_df,1,:ID => 1:100)
+insertcols!(geno_group2_df,1,:ID => 1:100)
+insertcols!(geno_group3_df,1,:ID => 1:100)
+insertcols!(geno_group4_df,1,:ID => 1:100)
+insertcols!(geno_group5_df,1,:ID => 1:100)
+
+CSV.write("geno_group1.csv",geno_group1_df)
+CSV.write("geno_group2.csv",geno_group2_df)
+CSV.write("geno_group3.csv",geno_group3_df)
+CSV.write("geno_group4.csv",geno_group4_df)
+CSV.write("geno_group5.csv",geno_group5_df)
