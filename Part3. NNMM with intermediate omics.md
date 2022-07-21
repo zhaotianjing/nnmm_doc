@@ -50,9 +50,7 @@ results    = innerjoin(out["EBV_NonLinear"], omics, on = :ID)
 accuruacy  = cor(results[!,:EBV],results[!,:bv])
 ```
 
-<!---
-sigmoid:0.816; linear:0.798,original:0.771, noomics-linear: 0.770, noomics-sigmoid: 0.753
--->
+
 
 
 ## Includes a residual that is not mediated by other omics features
