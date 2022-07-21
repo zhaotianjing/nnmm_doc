@@ -13,7 +13,8 @@
 
 ```julia
 # Step 1: Load packages
-using JWAS,DataFrames,CSV,Statistics,JWAS.Datasets
+using JWAS,DataFrames,CSV,Statistics,JWAS.Datasets,Random
+Random.seed!(123)
 
 # Step 2: Read data 
 phenofile  = dataset("phenotypes.csv") #get example data path
