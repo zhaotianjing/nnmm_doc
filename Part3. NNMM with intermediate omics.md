@@ -1,43 +1,52 @@
 # Mixed effect neural network: Genotypes -> (complete/incomplete) Intemediate omics features -> Phenotyes
 
-
-* The intermediate omics features should be in the same file as phenotypes. In this example, the "phenotypes.csv" file contains one column for the phenotype named "y1", and two columns for the omics features named "y2" and "y3". 
-* Just simply indicate the named of the omics features in the `build_model()` function. In this example, we have `latent_traits=["y2","y3"]`.
-* If there are many omics features (e.g., 1000), you can avoid printing the model information in the `runMCMC()` function by setting `printout_model_info=false`.
-* missing omics data is allowed. Just make sure the missings are recognized in Julia. For example, if the missing values are "NA" in your raw data, then you can set `missingstrings=["NA"]` in the `CSV.read()` function. Then thouse NA will be transferred to `missing` elements in Julia. 
-* You may want to set missing values manually, for example, set the phenotypes for individuals in testing dataset as missing. In julia, you should first change the type of that column to allow missing, e.g., `phenotypes[!,:y1] =  convert(Vector{Union{Missing,Float64}}, phenotypes[!,:y1])`. Then you can set missing values manually, e.g., `phenotypes[1:2,:y1] .= missing` sets the values for first two rows in column named y1 as missing.
-* To include residual (e.g. not mediated by other omics features) polygenic component, you can (1) an additional hidden node in the middle layer (see example (o2)); or use a more flexible partial-connected neural network (see example (o3)).
-* For the testing individuals (i.e., individuals without phenotype), if the testing individual have omics data, then incorporating those individuals in analysis will help to estimate marker effects. But if testing individuals only have genotype data, we cannot include them in our analysis. Instead, we can calculate the EBV once we have estimated the marker effects and neural network weights.
+Tips:
+* Put the names of omics features in the `build_model()` function through the `latent_traits` argument.
+* If there are many omics features (e.g., 1000), it is recommanded to set `printout_model_info=false` in the `runMCMC()` function.
+* Missing omics data for individuals in the training dataset (i.e., individuals with phenotypes) is allowed. When you read a file with missing values via the `CSV.read()` function, the `missingstrings` argument should be used to set sentinel values that will be parsed as `missing`.
+* For individuals in the testing dataset (i.e., individuals without phenotypes), if the testing individuals have complete omics data, then incorporating the omics data of those individuals may improve the relationship between input layer (genotype) and middle layer (omics).
 
 
-### example(o1)
+## example(o1): fully-connected neural networks with observed intemediate omics features
+* nonlinear function (to define relationship between omics and phenotye): sigmoid (other supported activation functions: "tanh", "relu", "leakyrelu", "linear")
+* number of omics features in the middle layer: 10
+* Bayesian model: multiple independent single-trait BayesC (to sample marker effects on intemediate omics)
+* sample the missing omics in the middle layer: Hamiltonian Monte Carlo
 ```julia
 # Step 1: Load packages
-using JWAS,DataFrames,CSV,Statistics,JWAS.Datasets
+using JWAS,DataFrames,CSV,Statistics,JWAS.Datasets, Random
+Random.seed!(123)
 
 # Step 2: Read data
-phenofile  = dataset("phenotypes.csv")
-genofile   = dataset("genotypes.csv")
+phenofile  = "/Users/tianjing/nnmm_doc/data_simulation/y.csv"
+genofile   = "/Users/tianjing/nnmm_doc/data_simulation/geno_n100_p200.csv"
+omicsfile = "/Users/tianjing/nnmm_doc/data_simulation/omics.csv"
 
-phenotypes = CSV.read(phenofile,DataFrame,delim = ',',header=true,missingstrings=["NA"]) #should include omcis data!
+phenotypes = CSV.read(phenofile,DataFrame)
+omics      = CSV.read(omicsfile,DataFrame)
+omics_names=names(omics)[2:end]
+insertcols!(omics,2,:y => phenotypes[:,:y], :bv => phenotypes[:,:bv])
 genotypes  = get_genotypes(genofile,separator=',',method="BayesC")
 
 # Step 3: Build Model Equations
-model_equation  ="y1 = intercept + genotypes" #y1 is the observed phenotype
+model_equation  ="y = intercept + genotypes"
 model = build_model(model_equation,
-		    num_hidden_nodes=2,
-                    latent_traits=["y2","y3"],  #y2 and y3 are two omics features
-		    nonlinear_function="tanh")
+		    num_hidden_nodes=10,
+                    latent_traits=omics_names,
+		    nonlinear_function="sigmoid")
 
 # Step 4: Run Analysis
-out = runMCMC(model,phenotypes,chain_length=5000,printout_model_info=false)
+out=runMCMC(model, omics, chain_length=5000,printout_model_info=false);
 
 # Step 5: Check Accuruacy
-results    = innerjoin(out["EBV_NonLinear"], phenotypes, on = :ID)
-accuruacy  = cor(results[!,:EBV],results[!,:bv1])
+results    = innerjoin(out["EBV_NonLinear"], omics, on = :ID)
+accuruacy  = cor(results[!,:EBV],results[!,:bv])
 ```
 
+
 ### example(o2): NN-LMM Omics: includes a residual that is not mediated by other omics features
+* To include residual (e.g. not mediated by other omics features) polygenic component, you can (1) an additional hidden node in the middle layer (see example (o2)); or use a more flexible partial-connected neural network (see example (o3)).
+* 
 This can be done by adding an extra hidden node. For all individuals, this extra hidden node will be treated as unknown to be sampled.
 
 The example for fully-connected neural network and partial-connected neural network:
@@ -107,3 +116,6 @@ results    = innerjoin(out["EBV_NonLinear"], phenotypes, on = :ID)
 accuruacy  = cor(results[!,:EBV],results[!,:bv1])
 ```
 
+
+### Julia Tips:
+* You may want to set missing values manually, for example, set the phenotypes for individuals in testing dataset as missing. In julia, you should first change the type of that column to allow missing, e.g., `phenotypes[!,:y1] =  convert(Vector{Union{Missing,Float64}}, phenotypes[!,:y1])`. Then you can set missing values manually, e.g., `phenotypes[1:2,:y1] .= missing` sets the values for first two rows in column named y1 as missing.
