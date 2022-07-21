@@ -14,19 +14,20 @@ Tips:
 * sample the missing omics in the middle layer: Hamiltonian Monte Carlo
 ```julia
 # Step 1: Load packages
-using JWAS,DataFrames,CSV,Statistics,JWAS.Datasets, Random
+using JWAS,DataFrames,CSV,Statistics,JWAS.Datasets, Random, HTTP #HTTP to download demo data online
 Random.seed!(123)
 
-# Step 2: Read data
-phenofile  = "/Users/tianjing/nnmm_doc/data_simulation/y.csv"
-genofile   = "/Users/tianjing/nnmm_doc/data_simulation/geno_n100_p200.csv"
-omicsfile = "/Users/tianjing/nnmm_doc/data_simulation/omics.csv"
-
+# Step 2: Read data (from github)
+phenofile  = HTTP.get("https://raw.githubusercontent.com/zhaotianjing/nnmm_doc/main/data_simulation/y.csv").body
+omicsfile  = HTTP.get("https://raw.githubusercontent.com/zhaotianjing/nnmm_doc/main/data_simulation/omics.csv").body
+genofile   = HTTP.get("https://raw.githubusercontent.com/zhaotianjing/nnmm_doc/main/data_simulation/geno_n100_p200.csv").body
 phenotypes = CSV.read(phenofile,DataFrame)
 omics      = CSV.read(omicsfile,DataFrame)
-omics_names=names(omics)[2:end]
+geno_df    = CSV.read(genofile,DataFrame)
+
+omics_names = names(omics)[2:end]
 insertcols!(omics,2,:y => phenotypes[:,:y], :bv => phenotypes[:,:bv])
-genotypes  = get_genotypes(genofile,separator=',',method="BayesC")
+genotypes = get_genotypes(geno_df,separator=',',method="BayesC")
 
 # Step 3: Build Model Equations
 model_equation  ="y = intercept + genotypes"
@@ -36,7 +37,7 @@ model = build_model(model_equation,
 		    nonlinear_function="sigmoid")
 
 # Step 4: Run Analysis
-out=runMCMC(model, omics, chain_length=5000,printout_model_info=false);
+out=runMCMC(model, omics, chain_length=5000, printout_model_info=false);
 
 # Step 5: Check Accuruacy
 results    = innerjoin(out["EBV_NonLinear"], omics, on = :ID)
