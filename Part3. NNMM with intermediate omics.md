@@ -28,16 +28,18 @@ phenotypes = CSV.read(phenofile,DataFrame)
 omics      = CSV.read(omicsfile,DataFrame)
 geno_df    = CSV.read(genofile,DataFrame)
 
-omics_names = names(omics)[2:end]
-insertcols!(omics,2,:y => phenotypes[:,:y], :bv => phenotypes[:,:bv])
+omics_names = names(omics)[2:end]  #get names of omics
+insertcols!(omics,2,:y => phenotypes[:,:y], :bv => phenotypes[:,:bv]) #phenotype and omics should be in the same dataframe
 genotypes = get_genotypes(geno_df,separator=',',method="BayesC")
 
 # Step 3: Build Model Equations
-model_equation  ="y = intercept + genotypes"
+model_equation  ="y = intercept + genotypes" #name of phenotypes is "y"
+                                             #name of genotypes is "genotypes" (user-defined in the previous step)
+                                             #the single-trait mixed model used between input and each omics is: omics = intercept + genotypes
 model = build_model(model_equation,
-		    num_hidden_nodes=10,
-                    latent_traits=omics_names,
-		    nonlinear_function="sigmoid")
+		    num_hidden_nodes=10,          #number of omics in middle layer is 3
+                    latent_traits=omics_names,    #name of all omics
+		    nonlinear_function="sigmoid") #sigmoid function is used to approximate relationship between omics and phenotypes
 
 # Step 4: Run Analysis
 out=runMCMC(model, omics, chain_length=5000, printout_model_info=false);
