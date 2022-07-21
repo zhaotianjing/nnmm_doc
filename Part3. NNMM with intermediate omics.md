@@ -12,110 +12,96 @@ Tips:
 * number of omics features in the middle layer: 10
 * Bayesian model: multiple independent single-trait BayesC (to sample marker effects on intemediate omics)
 * sample the missing omics in the middle layer: Hamiltonian Monte Carlo
+
+![](https://github.com/zhaotianjing/figures/blob/main/part3_example.png)
+
 ```julia
 # Step 1: Load packages
-using JWAS,DataFrames,CSV,Statistics,JWAS.Datasets, Random
+using JWAS,DataFrames,CSV,Statistics,JWAS.Datasets, Random, HTTP #HTTP to download demo data from github
 Random.seed!(123)
 
-# Step 2: Read data
-phenofile  = "/Users/tianjing/nnmm_doc/data_simulation/y.csv"
-genofile   = "/Users/tianjing/nnmm_doc/data_simulation/geno_n100_p200.csv"
-omicsfile = "/Users/tianjing/nnmm_doc/data_simulation/omics.csv"
-
+# Step 2: Read data (from github)
+phenofile  = HTTP.get("https://raw.githubusercontent.com/zhaotianjing/nnmm_doc/main/data_simulation/y.csv").body
+omicsfile  = HTTP.get("https://raw.githubusercontent.com/zhaotianjing/nnmm_doc/main/data_simulation/omics.csv").body
+genofile   = HTTP.get("https://raw.githubusercontent.com/zhaotianjing/nnmm_doc/main/data_simulation/geno_n100_p200.csv").body
 phenotypes = CSV.read(phenofile,DataFrame)
 omics      = CSV.read(omicsfile,DataFrame)
-omics_names=names(omics)[2:end]
-insertcols!(omics,2,:y => phenotypes[:,:y], :bv => phenotypes[:,:bv])
-genotypes  = get_genotypes(genofile,separator=',',method="BayesC")
+geno_df    = CSV.read(genofile,DataFrame)
+
+omics_names = names(omics)[2:end]  #get names of omics
+insertcols!(omics,2,:y => phenotypes[:,:y], :bv => phenotypes[:,:bv]) #phenotype and omics should be in the same dataframe
+
+genotypes = get_genotypes(geno_df,separator=',',method="BayesC")
 
 # Step 3: Build Model Equations
-model_equation  ="y = intercept + genotypes"
+model_equation  ="y = intercept + genotypes" #name of phenotypes is "y"
+                                             #name of genotypes is "genotypes" (user-defined in the previous step)
+                                             #the single-trait mixed model used between input and each omics is: omics = intercept + genotypes
 model = build_model(model_equation,
-		    num_hidden_nodes=10,
-                    latent_traits=omics_names,
-		    nonlinear_function="sigmoid")
+		    num_hidden_nodes=10,          #number of omics in middle layer is 3
+                    latent_traits=omics_names,    #name of all omics
+		    nonlinear_function="sigmoid") #sigmoid function is used to approximate relationship between omics and phenotypes
 
 # Step 4: Run Analysis
-out=runMCMC(model, omics, chain_length=5000,printout_model_info=false);
+out=runMCMC(model, omics, chain_length=5000, printout_model_info=false);
 
 # Step 5: Check Accuruacy
 results    = innerjoin(out["EBV_NonLinear"], omics, on = :ID)
 accuruacy  = cor(results[!,:EBV],results[!,:bv])
 ```
 
+<!---
+sigmoid:0.816; linear:0.798,original:0.771, noomics-linear: 0.770, noomics-sigmoid: 0.753
+-->
 
-### example(o2): NN-LMM Omics: includes a residual that is not mediated by other omics features
-* To include residual (e.g. not mediated by other omics features) polygenic component, you can (1) an additional hidden node in the middle layer (see example (o2)); or use a more flexible partial-connected neural network (see example (o3)).
-* 
-This can be done by adding an extra hidden node. For all individuals, this extra hidden node will be treated as unknown to be sampled.
 
-The example for fully-connected neural network and partial-connected neural network:
+## Includes a residual that is not mediated by other omics features
+To include residuals polygenic component (i.e. directly from genotypes to phenotypes, not mediated by omics features), you can additional hidden nodes in the middle layer (see example (o2)). This can also be achieved in a partial-connected neural network in a same manner.
 
 ![](https://github.com/zhaotianjing/figures/blob/main/wiki_omics_residual.png)
 
 
-Example code for fully-connected neural network with residual:
+### example(o2): fully-connected neural network with residuals
+
+For all individuals, this extra hidden node will be treated as unknown to be sampled.
+
 ```julia
 # Step 1: Load packages
-using JWAS,DataFrames,CSV,Statistics,JWAS.Datasets
+using JWAS,DataFrames,CSV,Statistics,JWAS.Datasets, Random, HTTP 
+Random.seed!(123)
 
-# Step 2: Read data
-phenofile  = dataset("phenotypes.csv")
-genofile   = dataset("genotypes.csv")
-phenotypes = CSV.read(phenofile,DataFrame,delim = ',',header=true,missingstrings=["NA"])
-insertcols!(phenotypes, 5, :residual => missing)  #add one column named "residual" with missing values, position is the 5th column in phenotypes
-phenotypes[!,:residual] = convert(Vector{Union{Missing,Float64}}, phenotypes[!,:residual]) #transform the datatype is required for Julia
-genotypes  = get_genotypes(genofile,separator=',',method="BayesC")
+# Step 2: Read data (from github)
+phenofile  = HTTP.get("https://raw.githubusercontent.com/zhaotianjing/nnmm_doc/main/data_simulation/y.csv").body
+omicsfile  = HTTP.get("https://raw.githubusercontent.com/zhaotianjing/nnmm_doc/main/data_simulation/omics.csv").body
+genofile   = HTTP.get("https://raw.githubusercontent.com/zhaotianjing/nnmm_doc/main/data_simulation/geno_n100_p200.csv").body
+phenotypes = CSV.read(phenofile,DataFrame)
+omics      = CSV.read(omicsfile,DataFrame)
+geno_df    = CSV.read(genofile,DataFrame)
 
-# Step 3: Build Model Equations
-model_equation  ="y1 = intercept + genotypes"   #y1 is the observed phenotype
-model = build_model(model_equation,
-		    num_hidden_nodes=3,
-                    latent_traits=["y2","y3","residual"],  #y2 and y3 are two omics features
-		    nonlinear_function="tanh")
+insertcols!(omics, :residual => missing)  #create a hidden node to account for residuals
+omics[!,:residual] = convert(Vector{Union{Missing,Float64}}, omics[!,:residual]) #transform the datatype is required for Julia
+omics_names = names(omics)[2:end]  #get names of 10 omics and 1 hidden node
+insertcols!(omics,2,:y => phenotypes[:,:y], :bv => phenotypes[:,:bv]) #phenotype and omics should be in the same dataframe
 
-# Step 4: Run Analysis
-out = runMCMC(model,phenotypes,chain_length=5000,printout_model_info=false)
-
-# Step 5: Check Accuruacy
-results    = innerjoin(out["EBV_NonLinear"], phenotypes, on = :ID)
-accuruacy  = cor(results[!,:EBV],results[!,:bv1])
-```
-
-Example code for partial-connected neural network with residual:
-```julia
-# Step 1: Load packages
-using JWAS,DataFrames,CSV,Statistics,JWAS.Datasets
-
-# Step 2: Read data
-phenofile   = dataset("phenotypes.csv")
-genofile1   = dataset("genotypes_group1.csv")
-genofile2   = dataset("genotypes_group2.csv")
-genofile3   = dataset("GRM.csv")
-
-phenotypes = CSV.read(phenofile,DataFrame,delim = ',',header=true,missingstrings=["NA"])
-insertcols!(phenotypes, 5, :residual => missing)  #add one column named "residual" with missing values, position is the 5th column in phenotypes
-phenotypes[!,:residual] = convert(Vector{Union{Missing,Float64}}, phenotypes[!,:residual]) #transform the datatype is required for Julia
-
-geno1  = get_genotypes(genofile1,separator=',',method="BayesA");
-geno2  = get_genotypes(genofile2,separator=',',method="BayesC");
-geno3  = get_genotypes(genofile3,separator=',',header=false,method="GBLUP");
+genotypes = get_genotypes(geno_df,separator=',',method="BayesC")
 
 # Step 3: Build Model Equations
-model_equation = "y1 = intercept + geno1 + geno2 + geno3";
+model_equation  ="y = intercept + genotypes" 
 model = build_model(model_equation,
-		    num_hidden_nodes=3,
-		    nonlinear_function="tanh",
-	            latent_traits=["y3","y2","residual"])
+		    num_hidden_nodes=11,   #10 omcis and 1 hidden node
+                    latent_traits=omics_names,
+		    nonlinear_function="sigmoid")
 
 # Step 4: Run Analysis
-out = runMCMC(model, phenotypes, chain_length=5000,printout_model_info=false);
+out = runMCMC(model,omics,chain_length=5000,printout_model_info=false)
 
 # Step 5: Check Accuruacy
-results    = innerjoin(out["EBV_NonLinear"], phenotypes, on = :ID)
-accuruacy  = cor(results[!,:EBV],results[!,:bv1])
+results    = innerjoin(out["EBV_NonLinear"], omics, on = :ID)
+accuruacy  = cor(results[!,:EBV],results[!,:bv])
 ```
+
+Users can also add extra hidden nodes in the partial-connected neural network. Please check next documentation for building a partial-connected neural network.
 
 
 ### Julia Tips:
-* You may want to set missing values manually, for example, set the phenotypes for individuals in testing dataset as missing. In julia, you should first change the type of that column to allow missing, e.g., `phenotypes[!,:y1] =  convert(Vector{Union{Missing,Float64}}, phenotypes[!,:y1])`. Then you can set missing values manually, e.g., `phenotypes[1:2,:y1] .= missing` sets the values for first two rows in column named y1 as missing.
+* You may want to set missing values manually, for example, setting the phenotypes for individuals in testing dataset as `missing`. Firstly, the type of  columns should be changed to allow `missing`, e.g., `phenotypes[!,:y] =  convert(Vector{Union{Missing,Float64}}, phenotypes[!,:y])`. Then, `missing` can be set manually, e.g., `phenotypes[10:11,:y1] .= missing` forces the 10th and 11th elements to be `missing`.
