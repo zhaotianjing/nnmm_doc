@@ -30,6 +30,7 @@ geno_df    = CSV.read(genofile,DataFrame)
 
 omics_names = names(omics)[2:end]  #get names of omics
 insertcols!(omics,2,:y => phenotypes[:,:y], :bv => phenotypes[:,:bv]) #phenotype and omics should be in the same dataframe
+
 genotypes = get_genotypes(geno_df,separator=',',method="BayesC")
 
 # Step 3: Build Model Equations
@@ -49,49 +50,58 @@ results    = innerjoin(out["EBV_NonLinear"], omics, on = :ID)
 accuruacy  = cor(results[!,:EBV],results[!,:bv])
 ```
 
+<!---
+sigmoid:0.816; linear:0.798,original:0.771, noomics-linear: 0.770, noomics-sigmoid: 0.753
+-->
 
-### example(o2): includes a residual that is not mediated by other omics features
-* To include residuals polygenic component (i.e., directly from genotypes to phenotypes, not mediated by omics features
 
-![image](https://user-images.githubusercontent.com/18593116/180110202-f4554178-1503-4b2b-a969-c92977160540.png)
-, you can (1) an additional hidden node in the middle layer (see example (o2)); or use a more flexible partial-connected neural network (see example (o3)).
-
-This can be done by adding an extra hidden node. For all individuals, this extra hidden node will be treated as unknown to be sampled.
-
-The example for fully-connected neural network and partial-connected neural network:
+## Includes a residual that is not mediated by other omics features
+To include residuals polygenic component (i.e. directly from genotypes to phenotypes, not mediated by omics features), you can (1) an additional hidden node in the middle layer (see example (o2)); or use a more flexible partial-connected neural network (see example (o3)).
 
 ![](https://github.com/zhaotianjing/figures/blob/main/wiki_omics_residual.png)
 
 
-Example code for fully-connected neural network with residual:
+### example(o2): fully-connected neural network with residual:
+
+For all individuals, this extra hidden node will be treated as unknown to be sampled.
+
 ```julia
 # Step 1: Load packages
-using JWAS,DataFrames,CSV,Statistics,JWAS.Datasets
+using JWAS,DataFrames,CSV,Statistics,JWAS.Datasets, Random, HTTP 
+Random.seed!(123)
 
-# Step 2: Read data
-phenofile  = dataset("phenotypes.csv")
-genofile   = dataset("genotypes.csv")
-phenotypes = CSV.read(phenofile,DataFrame,delim = ',',header=true,missingstrings=["NA"])
-insertcols!(phenotypes, 5, :residual => missing)  #add one column named "residual" with missing values, position is the 5th column in phenotypes
-phenotypes[!,:residual] = convert(Vector{Union{Missing,Float64}}, phenotypes[!,:residual]) #transform the datatype is required for Julia
-genotypes  = get_genotypes(genofile,separator=',',method="BayesC")
+# Step 2: Read data (from github)
+phenofile  = HTTP.get("https://raw.githubusercontent.com/zhaotianjing/nnmm_doc/main/data_simulation/y.csv").body
+omicsfile  = HTTP.get("https://raw.githubusercontent.com/zhaotianjing/nnmm_doc/main/data_simulation/omics.csv").body
+genofile   = HTTP.get("https://raw.githubusercontent.com/zhaotianjing/nnmm_doc/main/data_simulation/geno_n100_p200.csv").body
+phenotypes = CSV.read(phenofile,DataFrame)
+omics      = CSV.read(omicsfile,DataFrame)
+geno_df    = CSV.read(genofile,DataFrame)
+
+insertcols!(omics, :residual => missing)  #create a hidden node to account for residuals
+omics[!,:residual] = convert(Vector{Union{Missing,Float64}}, omics[!,:residual]) #transform the datatype is required for Julia
+omics_names = names(omics)[2:end]  #get names of 10 omics and 1 hidden node
+insertcols!(omics,2,:y => phenotypes[:,:y], :bv => phenotypes[:,:bv]) #phenotype and omics should be in the same dataframe
+
+genotypes = get_genotypes(geno_df,separator=',',method="BayesC")
 
 # Step 3: Build Model Equations
-model_equation  ="y1 = intercept + genotypes"   #y1 is the observed phenotype
+model_equation  ="y = intercept + genotypes" 
 model = build_model(model_equation,
-		    num_hidden_nodes=3,
-                    latent_traits=["y2","y3","residual"],  #y2 and y3 are two omics features
-		    nonlinear_function="tanh")
+		    num_hidden_nodes=11,   #10 omcis and 1 hidden node
+                    latent_traits=omics_names,
+		    nonlinear_function="sigmoid")
 
 # Step 4: Run Analysis
-out = runMCMC(model,phenotypes,chain_length=5000,printout_model_info=false)
+out = runMCMC(model,omics,chain_length=5000,printout_model_info=false)
 
 # Step 5: Check Accuruacy
-results    = innerjoin(out["EBV_NonLinear"], phenotypes, on = :ID)
-accuruacy  = cor(results[!,:EBV],results[!,:bv1])
+results    = innerjoin(out["EBV_NonLinear"], omics, on = :ID)
+accuruacy  = cor(results[!,:EBV],results[!,:bv])
 ```
 
-Example code for partial-connected neural network with residual:
+
+### example(o2): Example code for partial-connected neural network with residual:
 ```julia
 # Step 1: Load packages
 using JWAS,DataFrames,CSV,Statistics,JWAS.Datasets
