@@ -14,7 +14,7 @@ Tips:
 * sample the missing omics in the middle layer: Hamiltonian Monte Carlo
 ```julia
 # Step 1: Load packages
-using JWAS,DataFrames,CSV,Statistics,JWAS.Datasets, Random, HTTP #HTTP to download demo data online
+using JWAS,DataFrames,CSV,Statistics,JWAS.Datasets, Random, HTTP #HTTP to download demo data from github
 Random.seed!(123)
 
 # Step 2: Read data (from github)
