@@ -100,6 +100,8 @@ results    = innerjoin(out["EBV_NonLinear"], omics, on = :ID)
 accuruacy  = cor(results[!,:EBV],results[!,:bv])
 ```
 
+Users can also add extra hidden nodes in the partial-connected neural network. Please check next documentation for building a partial-connected neural network.
+
 
 ### Julia Tips:
 * You may want to set missing values manually, for example, setting the phenotypes for individuals in testing dataset as `missing`. Firstly, the type of  columns should be changed to allow `missing`, e.g., `phenotypes[!,:y] =  convert(Vector{Union{Missing,Float64}}, phenotypes[!,:y])`. Then, `missing` can be set manually, e.g., `phenotypes[10:11,:y1] .= missing` forces the 10th and 11th elements to be `missing`.
