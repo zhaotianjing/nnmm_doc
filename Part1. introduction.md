@@ -24,7 +24,7 @@ NN-MM can fit fully-connected neural networks ((a),(b)), or partial-connected ne
 
 ## 4. Multi-threaded parallelism
 
-By default, multiple single-trait models will be used to model the relationships between input layer (genotypes) and middle layer (intermediate traits). Multi-threaded parallelism will be used for parallel computing. The number of threads can be checked by running `Threads.nthreads()` in Julia. Usually, the speed will be about 3 times faster than the single thread.
+By default, multiple single-trait models will be used to model the relationships between input layer (genotypes) and middle layer (intermediate traits). Multi-threaded parallelism will be used for parallel computing. The number of threads can be checked by running `Threads.nthreads()` in Julia. Usually, using multiple threads will be about 3 times faster than using a single thread.
 
 The number of execution threads is controlled by using the -t/--threads command-line argument (requires at least Julia 1.5). 
 
