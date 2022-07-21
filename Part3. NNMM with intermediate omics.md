@@ -56,12 +56,12 @@ sigmoid:0.816; linear:0.798,original:0.771, noomics-linear: 0.770, noomics-sigmo
 
 
 ## Includes a residual that is not mediated by other omics features
-To include residuals polygenic component (i.e. directly from genotypes to phenotypes, not mediated by omics features), you can (1) an additional hidden node in the middle layer (see example (o2)); or use a more flexible partial-connected neural network (see example (o3)).
+To include residuals polygenic component (i.e. directly from genotypes to phenotypes, not mediated by omics features), you can additional hidden nodes in the middle layer (see example (o2)). This can also be achieved in a partial-connected neural network in a same manner.
 
 ![](https://github.com/zhaotianjing/figures/blob/main/wiki_omics_residual.png)
 
 
-### example(o2): fully-connected neural network with residual:
+### example(o2): fully-connected neural network with residuals
 
 For all individuals, this extra hidden node will be treated as unknown to be sampled.
 
@@ -101,40 +101,5 @@ accuruacy  = cor(results[!,:EBV],results[!,:bv])
 ```
 
 
-### example(o2): Example code for partial-connected neural network with residual:
-```julia
-# Step 1: Load packages
-using JWAS,DataFrames,CSV,Statistics,JWAS.Datasets
-
-# Step 2: Read data
-phenofile   = dataset("phenotypes.csv")
-genofile1   = dataset("genotypes_group1.csv")
-genofile2   = dataset("genotypes_group2.csv")
-genofile3   = dataset("GRM.csv")
-
-phenotypes = CSV.read(phenofile,DataFrame,delim = ',',header=true,missingstrings=["NA"])
-insertcols!(phenotypes, 5, :residual => missing)  #add one column named "residual" with missing values, position is the 5th column in phenotypes
-phenotypes[!,:residual] = convert(Vector{Union{Missing,Float64}}, phenotypes[!,:residual]) #transform the datatype is required for Julia
-
-geno1  = get_genotypes(genofile1,separator=',',method="BayesA");
-geno2  = get_genotypes(genofile2,separator=',',method="BayesC");
-geno3  = get_genotypes(genofile3,separator=',',header=false,method="GBLUP");
-
-# Step 3: Build Model Equations
-model_equation = "y1 = intercept + geno1 + geno2 + geno3";
-model = build_model(model_equation,
-		    num_hidden_nodes=3,
-		    nonlinear_function="tanh",
-	            latent_traits=["y3","y2","residual"])
-
-# Step 4: Run Analysis
-out = runMCMC(model, phenotypes, chain_length=5000,printout_model_info=false);
-
-# Step 5: Check Accuruacy
-results    = innerjoin(out["EBV_NonLinear"], phenotypes, on = :ID)
-accuruacy  = cor(results[!,:EBV],results[!,:bv1])
-```
-
-
 ### Julia Tips:
-* You may want to set missing values manually, for example, set the phenotypes for individuals in testing dataset as missing. In julia, you should first change the type of that column to allow missing, e.g., `phenotypes[!,:y1] =  convert(Vector{Union{Missing,Float64}}, phenotypes[!,:y1])`. Then you can set missing values manually, e.g., `phenotypes[1:2,:y1] .= missing` sets the values for first two rows in column named y1 as missing.
+* You may want to set missing values manually, for example, setting the phenotypes for individuals in testing dataset as `missing`. Firstly, the type of  columns should be changed to allow `missing`, e.g., `phenotypes[!,:y] =  convert(Vector{Union{Missing,Float64}}, phenotypes[!,:y])`. Then, `missing` can be set manually, e.g., `phenotypes[10:11,:y1] .= missing` forces the 10th and 11th elements to be `missing`.
